@@ -1,0 +1,205 @@
+#include "Poly.h"
+Poly::Poly()
+{
+    head = new PolyNode(-1, 0, NULL); //creates a zero polynomial with degree -1 
+}
+Poly::Poly(const std::vector<int>& deg, const std::vector<double>& coeff)
+{
+    PolyNode* p;
+    head = new PolyNode(-1, 0, NULL);   //creates a zero polynomial with degree -1 
+    p = head;
+    for (int i = 0; i < deg.size(); i++) {
+        PolyNode* add = new PolyNode(deg[i], coeff[i], NULL); //adds the corresponding monomial with that degree and coefficient to the poly object 
+        p->next = add;
+        p = p->next; //iterates 
+    }
+}
+Poly::~Poly()
+{
+    while (head->next) { //delete all nodes 
+        auto temp = head->next;
+        head->next = temp->next;
+        delete temp;
+    }
+}
+void Poly::addMono(int i, double c)
+/*
+Run-time complexity is theta n: for loop iterates through all nodes
+Space complexity (WC) is theta 1: a constant amount of memory for one polynomial is required 
+(independent of the number of nodes in poly)
+*/
+{
+    if (c == 0) { //if the constant is 0, the term should not add 
+        return;
+    }
+    //loop through the linked list to check the degree
+    PolyNode* p; //create node for iteration 
+    PolyNode* prev = head; //create previous node 
+    for (p = head->next; p != NULL; p = p->next) { //iterates and checks conditions until NULL  
+        if (p->deg == i) { //if the degree of the terms match 
+            p->coeff = p->coeff + c; //add coefficient to the current term 
+            if (p->coeff == 0) { //if the summation of coefficients yields 0, delete term 
+                PolyNode* temp = p;
+                prev->next = p->next;
+                delete temp;
+            }
+            break;
+        }
+        //if insert new in middle
+        else if (i > p->deg) { //if you have surpassed where the degree of terms would match, insert node immediately after and break 
+            PolyNode* insert = new PolyNode(i, c, p);
+            prev->next = insert;
+            break;
+        }
+        //if need to insert new at end
+        else if (p->next == NULL) { //if you never reach where the degree of terms would match, insert node at end of list 
+            PolyNode* insert = new PolyNode(i, c, NULL); //only difference is points to NULL 
+            p->next = insert;
+            break;
+        }
+        prev = prev->next; //iterates 
+    }
+}
+void Poly::addPoly(const Poly& p)
+/*
+Run-time complexity is theta n^2: for loop iterates through all nodes (n times) and addMono 
+is called within the for loop (complexity n) --> total complexity is n^2 WC
+Space complexity (WC) is theta n: in worst case, the number of terms of p is added to this 
+polynomial so n new nodes are created (dependent on the number of nodes in p)
+*/
+{
+    PolyNode* point; //create node for iteration 
+    // iterate rough poly with one addmono at a time
+    //if this is empty, copy p to this
+    if (head->next == NULL) { //if no elements 
+        PolyNode* thispoint = head;
+        for (point = p.head->next; point != NULL; point = point->next) { //iterates through inputted polynomial and inserts the elements 
+            PolyNode* insert = new PolyNode(point->deg, point->coeff, NULL);
+            thispoint->next = insert;
+            thispoint = thispoint->next;
+        }
+    }
+    else {
+        for (point = p.head->next; point != NULL; point = point->next) { //iterates through inputted polynomial and calls addMono 
+            addMono(point->deg, point->coeff);
+        }
+    }
+}
+void Poly::multiplyMono(int i, double c)
+/*
+Run-time complexity is theta n: for loop iterates through all nodes (n times)
+Space complexity (WC) is theta 1: modifies terms, does not add new terms (independent of term number)
+*/
+{
+    //check if mono coefficient is 0, cause then everything will = 0
+    if (c == 0) {
+        while (head->next) { //deletes all terms if multiplication by 0 
+            auto temp = head->next; //temp node 
+            head->next = temp->next; //move head 
+            delete temp; //delete node 
+        }
+    }
+    else {
+        PolyNode* p;
+        for (p = head->next; p != NULL; p = p->next) {
+            p->deg = p->deg + i; //add degrees 
+            p->coeff = p->coeff * c; //multiply coefficients 
+        }
+    }
+}
+void Poly::multiplyPoly(const Poly& p)
+/*
+Run-time complexity is theta n^3: for loop iterates through all nodes (n times) and 
+addPoly has complexity n^2 --> multiply complexities
+Space complexity (WC) is theta n: creates constant new memory + calls addPoly and duplicate 
+(both space complexity n) --> 2n means theta n
+*/
+{
+    PolyNode* point;
+    //Poly result; //create two new polynomials 
+    Poly temp1;
+    duplicate(temp1); //call duplicate function to duplicate this into temp1 
+    //run multiplyMono while looping through p and making temp poly's for each node of p
+    while (head->next != NULL) { //delete this poly because it needs to be modified from scratch 
+        auto temp = head->next;
+        head->next = temp->next;
+        delete temp;
+    }
+    for (point = p.head->next; point != NULL; point = point->next) {
+        Poly temp2; //create temp2 poly 
+        temp1.duplicate(temp2); //duplicate temp1 (original this) into temp2 
+        temp2.multiplyMono(point->deg, point->coeff); //multiply temp2 (original this) by the input polynomial (will be stored in temp2) 
+        addPoly(temp2); //add temp2 (multiplication result) to this poly 
+    }
+}
+void Poly::duplicate(Poly& outputPoly) {
+    /*
+    Run-time complexity is theta n: for loop iterates through all nodes (n times)
+    Space complexity is theta n: creates constant n new terms (dependent on input poly)
+    */
+    //clear incoming outputPoly
+    while (outputPoly.head->next != NULL) {
+        auto temp = outputPoly.head->next;
+        outputPoly.head->next = temp->next;
+        delete temp;
+    }
+    PolyNode* p;
+    PolyNode* p_out = outputPoly.head;
+    for (p = head->next; p != NULL; p = p->next) {
+        PolyNode* add = new PolyNode(p->deg, p->coeff, NULL);
+        p_out->next = add;
+        p_out = p_out->next;
+    }
+}
+int Poly::getDegree()
+/*
+Run-time complexity is theta 1: just conditional statements
+Space complexity is theta 1: constant new memory (aka none here) --> (independent of poly)
+*/
+{
+    //degree element of the first non-dummy node is the degree of the polynomial
+    if (head->next != NULL) {
+        return head->next->deg;
+    }
+    else {
+        return -1;
+    }
+}
+int Poly::getTermsNo()
+/*
+Run-time complexity is theta n: for loop iterates through all nodes (n times)
+Space complexity is theta 1: constant new memory (independent of poly)
+*/
+{
+    int counter = 0;
+    PolyNode* p;
+    for (p = head; p->next != NULL; p = p->next) { //increments counter for each iteration 
+        counter++;
+    }
+    return counter;
+}
+double Poly::exponent(int exp, double x) {
+    double result = 1; //initialize return variable 
+    for (int i = 0; i < exp; i++) {
+        result = result * x; //multiplies x by the result each iteration 
+    }
+    return result;
+}
+double Poly::evaluate(double x)
+{
+    double evaluation = 0;
+    PolyNode* p;
+    for (p = head->next; p != NULL; p = p->next) {
+        evaluation = evaluation + (p->coeff * exponent(p->deg, x));
+    }
+    return evaluation;
+}
+std::string Poly::toString()
+{
+    std::string output = "degree=" + std::to_string(getDegree()) + "; ";
+    PolyNode* p;
+    for (p = head->next; p != NULL; p = p->next) {
+        output = output + "a(" + std::to_string(p->deg) + ")=" + std::to_string(p->coeff) + "; ";
+    }
+    return output;
+}
